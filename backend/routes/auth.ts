@@ -1,11 +1,11 @@
-import { Router } from "jsr:@oak/oak";
+import { Router } from "@oak/oak";
 import { hash, verify } from "jsr:@felix/bcrypt";
 import { db } from "../db/client.ts";
 import { createToken } from "../middleware/auth.ts";
 
 export const authRouter = new Router();
 
-authRouter.post("/auth/register", async (ctx) => {
+authRouter.post("/api/v1/auth/register", async (ctx) => {
   const { email, password, name } = await ctx.request.body.json();
 
   if (!email || !password) {
@@ -34,7 +34,7 @@ authRouter.post("/auth/register", async (ctx) => {
   ctx.response.body = { user: { id, email, name }, token };
 });
 
-authRouter.post("/auth/login", async (ctx) => {
+authRouter.post("/api/v1/auth/login", async (ctx) => {
   const { email, password } = await ctx.request.body.json();
 
   const user = db
@@ -51,4 +51,11 @@ authRouter.post("/auth/login", async (ctx) => {
     user: { id: user.id, email: user.email, name: user.name },
     token,
   };
+});
+authRouter.get("/api/v1/users/me", async (ctx) => {
+  const userId = ctx.state.userId;
+  const user = db
+    .prepare("SELECT id, email, name FROM users WHERE id = ?")
+    .get(userId) as any;
+  ctx.response.body = { user };
 });
