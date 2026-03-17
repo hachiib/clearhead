@@ -1,7 +1,7 @@
 import { Router } from "@oak/oak";
 import { hash, verify } from "jsr:@felix/bcrypt";
 import { db } from "../db/client.ts";
-import { createToken } from "../middleware/auth.ts";
+import { authMiddleware, createToken } from "../middleware/auth.ts";
 
 export const authRouter = new Router();
 
@@ -52,7 +52,7 @@ authRouter.post("/api/v1/auth/login", async (ctx) => {
     token,
   };
 });
-authRouter.get("/api/v1/users/me", async (ctx) => {
+authRouter.get("/api/v1/users/me", authMiddleware, async (ctx) => {
   const userId = ctx.state.userId;
   const user = db
     .prepare("SELECT id, email, name FROM users WHERE id = ?")

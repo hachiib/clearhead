@@ -1,6 +1,7 @@
 import { Application, Router } from "@oak/oak";
 import { authRouter } from "./routes/auth.ts";
 import "./db/client.ts";
+import { transactionsRouter } from "./routes/transactions.ts";
 
 const app = new Application();
 
@@ -32,6 +33,8 @@ app.use(router.routes());
 app.use(router.allowedMethods());
 app.use(authRouter.routes());
 app.use(authRouter.allowedMethods());
+app.use(transactionsRouter.routes());
+app.use(transactionsRouter.allowedMethods());
 
 console.log("Server running on http://localhost:8000");
 await app.listen({ port: 8000 });
