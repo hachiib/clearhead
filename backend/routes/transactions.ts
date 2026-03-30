@@ -53,3 +53,91 @@ transactionsRouter.post("/api/v1/transactions", authMiddleware, async (ctx) => {
     transaction: { id, userId, amount, category, description, date, type },
   };
 });
+
+transactionsRouter.put(
+  "/api/v1/transactions/:id",
+  authMiddleware,
+  async (ctx) => {
+    const userId = ctx.state.userId;
+    const transactionId = ctx.params.id;
+
+    // Check transaction exists and belongs to this user
+    const existing = db
+      .prepare("SELECT * FROM transactions WHERE id = ? AND user_id = ?")
+      .get(transactionId, userId) as any;
+
+    if (!existing) {
+      ctx.response.status = 404;
+      ctx.response.body = { error: { message: "Transaction not found" } };
+      return;
+    }
+
+    const { amount, category, description, date, type } =
+      await ctx.request.body.json();
+
+    // Use existing values if not provided
+    const updatedAmount = amount ?? existing.amount;
+    const updatedCategory = category ?? existing.category;
+    const updatedDescription = description ?? existing.description;
+    const updatedDate = date ?? existing.date;
+    const updatedType = type ?? existing.type;
+
+    if (updatedType !== "income" && updatedType !== "expense") {
+      ctx.response.status = 400;
+      ctx.response.body = {
+        error: { message: "type must be income or expense" },
+      };
+      return;
+    }
+
+    db.prepare(
+      "UPDATE transactions SET amount = ?, category = ?, description = ?, date = ?, type = ? WHERE id = ? AND user_id = ?",
+    ).run(
+      updatedAmount,
+      updatedCategory,
+      updatedDescription,
+      updatedDate,
+      updatedType,
+      transactionId,
+      userId,
+    );
+
+    ctx.response.body = {
+      transaction: {
+        id: transactionId,
+        userId,
+        amount: updatedAmount,
+        category: updatedCategory,
+        description: updatedDescription,
+        date: updatedDate,
+        type: updatedType,
+      },
+    };
+  },
+);
+
+transactionsRouter.delete(
+  "/api/v1/transactions/:id",
+  authMiddleware,
+  async (ctx) => {
+    const userId = ctx.state.userId;
+    const transactionId = ctx.params.id;
+
+    const existing = db
+      .prepare("SELECT * FROM transactions WHERE id = ? AND user_id = ?")
+      .get(transactionId, userId) as any;
+
+    if (!existing) {
+      ctx.response.status = 404;
+      ctx.response.body = { error: { message: "Transaction not found" } };
+      return;
+    }
+
+    db.prepare("DELETE FROM transactions WHERE id = ? AND user_id = ?").run(
+      transactionId,
+      userId,
+    );
+
+    ctx.response.status = 204;
+  },
+);
