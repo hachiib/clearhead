@@ -8,9 +8,15 @@ export const authRouter = new Router();
 authRouter.post("/api/v1/auth/register", async (ctx) => {
   const { email, password, name } = await ctx.request.body.json();
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!email || !password) {
     ctx.response.status = 400;
     ctx.response.body = { error: { message: "Email and password required" } };
+    return;
+  }
+  if (!emailRegex.test(email)) {
+    ctx.response.status = 400;
+    ctx.response.body = { error: { message: "Invalid email format" } };
     return;
   }
 

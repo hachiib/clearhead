@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClearHead — Login</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="card mt-24">
+
+      <h1 class="text-center">ClearHead</h1>
+      <p class="text-muted text-center mt-8">Your money. Your mood. Connected.</p>
+
+      <!-- Tab switcher -->
+      <div style="display:flex; gap:8px; margin:24px 0 20px;">
+        <button class="btn btn-primary" id="tab-login" onclick="showTab('login')">Login</button>
+        <button class="btn btn-ghost" id="tab-register" onclick="showTab('register')">Register</button>
+      </div>
+
+      <!-- Alert -->
+      <div class="alert" id="alert"></div>
+
+      <!-- Login Form -->
+      <form id="login-form" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label for="login-email">Email</label>
+          <input type="email" id="login-email" placeholder="you@example.com" required />
+        </div>
+        <div class="form-group">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" placeholder="••••••••" required />
+        </div>
+        <button type="submit" class="btn btn-primary" id="login-btn">Login</button>
+      </form>
+
+      <!-- Register Form -->
+      <form id="register-form" onsubmit="handleRegister(event)" style="display:none;">
+        <div class="form-group">
+          <label for="reg-email">Email</label>
+          <input type="email" id="reg-email" placeholder="you@example.com" required />
+        </div>
+        <div class="form-group">
+          <label for="reg-name">Name</label>
+          <input type="text" id="reg-name" placeholder="Your name" required />
+        </div>
+        <div class="form-group">
+          <label for="reg-password">Password</label>
+          <input type="password" id="reg-password" placeholder="••••••••" required />
+        </div>
+        <div class="form-group">
+          <label for="reg-confirm">Confirm Password</label>
+          <input type="password" id="reg-confirm" placeholder="••••••••" required />
+        </div>
+        <button type="submit" class="btn btn-primary" id="register-btn">Register</button>
+      </form>
+
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    // If already logged in, skip this page
+    if (isLoggedIn()) window.location.href = "/dashboard.html";
+
+    function showTab(tab) {
+      const isLogin = tab === "login";
+      document.getElementById("login-form").style.display    = isLogin ? "block" : "none";
+      document.getElementById("register-form").style.display = isLogin ? "none"  : "block";
+      document.getElementById("tab-login").className    = isLogin ? "btn btn-primary" : "btn btn-ghost";
+      document.getElementById("tab-register").className = isLogin ? "btn btn-ghost"   : "btn btn-primary";
+      hideAlert();
+    }
+
+    function showAlert(message, type = "error") {
+      const el = document.getElementById("alert");
+      el.textContent = message;
+      el.className = `alert alert-${type} show`;
+    }
+
+    function hideAlert() {
+      document.getElementById("alert").className = "alert";
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const btn = document.getElementById("login-btn");
+      btn.textContent = "Logging in...";
+      btn.disabled = true;
+
+      try {
+        const email    = document.getElementById("login-email").value.trim();
+        const password = document.getElementById("login-password").value;
+        const { user, token } = await api.login(email, password);
+        saveSession(token, user);
+        window.location.href = "/dashboard.html";
+      } catch (err) {
+        showAlert(err.message);
+        btn.textContent = "Login";
+        btn.disabled = false;
+      }
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      const password = document.getElementById("reg-password").value;
+      const confirm  = document.getElementById("reg-confirm").value;
+
+      if (password !== confirm) {
+        showAlert("Passwords do not match");
+        return;
+      }
+
+      const btn = document.getElementById("register-btn");
+      btn.textContent = "Creating account...";
+      btn.disabled = true;
+
+      try {
+        const email = document.getElementById("reg-email").value.trim();
+        const name  = document.getElementById("reg-name").value.trim();
+        const { user, token } = await api.register(email, name, password);
+        saveSession(token, user);
+        window.location.href = "/dashboard.html";
+      } catch (err) {
+        showAlert(err.message);
+        btn.textContent = "Register";
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

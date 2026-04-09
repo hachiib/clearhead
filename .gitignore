@@ -1,0 +1,8 @@
+# Environment variables - NEVER commit these
+.env
+
+# SQLite database
+*.db
+
+# Deno cache
+.deno/

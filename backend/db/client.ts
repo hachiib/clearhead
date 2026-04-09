@@ -27,7 +27,7 @@ db.exec(`
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id),
     mood_score INTEGER CHECK(mood_score BETWEEN 1 AND 10) NOT NULL,
-    stress_score INTEGER CHECK(stress_score BETWEEN 1 AND 5) NOT NULL,
+    stress_score INTEGER CHECK(stress_score BETWEEN 1 AND 10) NOT NULL,
     note TEXT,
     date TEXT NOT NULL,
     created_at INTEGER DEFAULT (unixepoch())

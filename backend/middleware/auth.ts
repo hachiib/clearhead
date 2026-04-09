@@ -1,11 +1,14 @@
 import { create, verify } from "jsr:@zaubrik/djwt";
 import { db } from "../db/client.ts";
 
+const jwtSecret = Deno.env.get("JWT_SECRET");
+if (!jwtSecret) {
+  throw new Error("JWT_SECRET environment variable is required");
+}
+
 const SECRET_KEY = await crypto.subtle.importKey(
   "raw",
-  new TextEncoder().encode(
-    Deno.env.get("JWT_SECRET") ?? "dev-secret-change-this",
-  ),
+  new TextEncoder().encode(jwtSecret),
   { name: "HMAC", hash: "SHA-256" },
   false,
   ["sign", "verify"],

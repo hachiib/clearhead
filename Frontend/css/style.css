@@ -1,0 +1,286 @@
+/* ── Reset & Base ─────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg:           #f5f5f0;
+  --surface:      #ffffff;
+  --border:       #e0e0d8;
+  --text:         #1a1a1a;
+  --text-muted:   #6b6b6b;
+  --primary:      #2d6a4f;
+  --primary-hover:#1b4332;
+  --danger:       #c0392b;
+  --income-bg:    #d8f3dc;
+  --income-text:  #1b4332;
+  --expense-bg:   #fde8e8;
+  --expense-text: #7b2020;
+  --radius:       12px;
+  --shadow:       0 2px 8px rgba(0,0,0,0.07);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* ── Layout ───────────────────────────────────────────── */
+.container {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow);
+}
+
+/* ── Typography ───────────────────────────────────────── */
+h1 { font-size: 1.75rem; font-weight: 700; }
+h2 { font-size: 1.25rem; font-weight: 600; }
+h3 { font-size: 1rem;    font-weight: 600; }
+
+.text-muted { color: var(--text-muted); font-size: 0.875rem; }
+.text-center { text-align: center; }
+
+/* ── Buttons ──────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+  width: 100%;
+}
+.btn-primary:hover { background: var(--primary-hover); }
+
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+}
+.btn-danger:hover { opacity: 0.85; }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover { background: var(--bg); }
+
+/* ── Forms ────────────────────────────────────────────── */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  transition: border 0.15s;
+  width: 100%;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  border-color: var(--primary);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* Slider */
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+  outline: none;
+  padding: 0;
+  border: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
+}
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.slider-row span {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  min-width: 16px;
+  text-align: center;
+}
+.slider-value {
+  font-weight: 700;
+  color: var(--primary);
+  font-size: 1rem;
+  min-width: 28px;
+  text-align: right;
+}
+
+/* ── Stat Circles ─────────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.stat-circle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  aspect-ratio: 1;
+  padding: 12px;
+  text-align: center;
+}
+
+.stat-circle .stat-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.stat-circle .stat-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ── Transaction List ─────────────────────────────────── */
+.transaction-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.transaction-item.income {
+  background: var(--income-bg);
+  color: var(--income-text);
+}
+
+.transaction-item.expense {
+  background: var(--expense-bg);
+  color: var(--expense-text);
+}
+
+.transaction-item .t-name  { font-weight: 500; }
+.transaction-item .t-date  { font-size: 0.78rem; opacity: 0.75; }
+.transaction-item .t-amount { font-weight: 700; white-space: nowrap; }
+.transaction-item .t-menu  { cursor: pointer; font-size: 1.1rem; padding: 0 4px; }
+
+/* ── Nav / Quicklinks ─────────────────────────────────── */
+.nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-around;
+  padding: 10px 0 env(safe-area-inset-bottom);
+  z-index: 100;
+}
+
+.nav a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-decoration: none;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  transition: color 0.15s;
+}
+
+.nav a.active,
+.nav a:hover { color: var(--primary); }
+
+.nav-icon { font-size: 1.3rem; }
+
+/* ── Alerts / Feedback ────────────────────────────────── */
+.alert {
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  margin-bottom: 16px;
+  display: none;
+}
+.alert.show { display: block; }
+.alert-error   { background: var(--expense-bg); color: var(--expense-text); }
+.alert-success { background: var(--income-bg);  color: var(--income-text);  }
+
+/* ── Page header ──────────────────────────────────────── */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+/* ── Utility ──────────────────────────────────────────── */
+.mt-8  { margin-top: 8px; }
+.mt-16 { margin-top: 16px; }
+.mt-24 { margin-top: 24px; }
+.mb-16 { margin-bottom: 16px; }
+.pb-nav { padding-bottom: 80px; } /* space above fixed nav */

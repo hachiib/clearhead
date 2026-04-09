@@ -7,9 +7,11 @@ import { insightsRouter } from "./routes/insights.ts";
 
 const app = new Application();
 
+const allowedOrigin = Deno.env.get("FRONTEND_URL") ?? "http://localhost:3000";
+
 // CORS middleware
 app.use(async (ctx, next) => {
-  ctx.response.headers.set("Access-Control-Allow-Origin", "*");
+  ctx.response.headers.set("Access-Control-Allow-Origin", allowedOrigin);
   ctx.response.headers.set(
     "Access-Control-Allow-Methods",
     "GET, POST, PUT, DELETE, OPTIONS",
