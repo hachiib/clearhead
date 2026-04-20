@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClearHead — What It Means</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    .insight-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .insight-block h3 {
+      margin-bottom: 8px;
+    }
+    .corr-bar-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 12px 0;
+    }
+    .corr-bar-bg {
+      flex: 1;
+      height: 8px;
+      background: var(--border);
+      border-radius: 4px;
+      position: relative;
+      overflow: visible;
+    }
+    .corr-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: var(--primary);
+      transition: width 0.4s ease;
+    }
+    .corr-bar-fill.negative {
+      background: var(--danger);
+      margin-left: auto;
+    }
+    .corr-value {
+      font-weight: 700;
+      font-size: 1.1rem;
+      min-width: 52px;
+      text-align: right;
+      color: var(--primary);
+    }
+    .corr-value.negative { color: var(--danger); }
+  </style>
+</head>
+<body>
+  <div class="container pb-nav">
+
+    <div class="page-header mt-16">
+      <h1>What It Means</h1>
+      <a href="/insights.html" class="btn btn-ghost" style="width:auto;">← Back</a>
+    </div>
+
+    <div class="alert" id="alert"></div>
+    <div id="content"><p class="text-muted">Loading…</p></div>
+
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="nav">
+    <a href="/dashboard.html"><span class="nav-icon">🏠</span>Home</a>
+    <a href="/transactions.html"><span class="nav-icon">💳</span>Spend</a>
+    <a href="/checkin.html"><span class="nav-icon">😊</span>Check-in</a>
+    <a href="/insights.html" class="active"><span class="nav-icon">📊</span>Insights</a>
+    <a href="/import.html"><span class="nav-icon">📤</span>Import</a>
+  </nav>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    requireAuth();
+
+    function showAlert(msg, type = "error") {
+      const el = document.getElementById("alert");
+      el.textContent = msg;
+      el.className = `alert alert-${type} show`;
+    }
+
+    function strengthLabel(r) {
+      const abs = Math.abs(r);
+      if (abs >= 0.7) return "strong";
+      if (abs >= 0.4) return "moderate";
+      if (abs >= 0.2) return "weak";
+      return "very weak";
+    }
+
+    function barHtml(r) {
+      if (r == null) return "";
+      const pct = Math.round(Math.abs(r) * 100);
+      const neg = r < 0;
+      return `
+        <div class="corr-bar-wrap">
+          <div class="corr-bar-bg">
+            <div class="corr-bar-fill ${neg ? "negative" : ""}" style="width:${pct}%;"></div>
+          </div>
+          <span class="corr-value ${neg ? "negative" : ""}">${r > 0 ? "+" : ""}${r}</span>
+        </div>
+      `;
+    }
+
+    async function loadCorrelation() {
+      try {
+        const res = await api.getCorrelation();
+        const c = res.correlation;
+        const el = document.getElementById("content");
+
+        if (c.message) {
+          el.innerHTML = `
+            <div class="insight-block">
+              <h3>Not enough data yet</h3>
+              <p style="margin-top:8px;">${c.message}</p>
+              <p class="text-muted" style="margin-top:12px;">
+                Matched days so far: <strong>${c.matchedDays}</strong>. Log at least 2 check-ins
+                and transactions on the same dates to see correlations.
+              </p>
+            </div>
+            <div class="insight-block">
+              <h3>How to read this page</h3>
+              <p style="margin-top:8px; line-height:1.6;">
+                ClearHead looks for days where you logged both a transaction and a check-in,
+                then calculates the <strong>Pearson correlation</strong> — a number between
+                −1 and +1 that shows how strongly your spending relates to how you feel.
+              </p>
+              <ul style="margin-top:10px; padding-left:18px; line-height:1.8; font-size:0.9rem; color:var(--text-muted);">
+                <li><strong>+1</strong> — you always feel better on days you spend more</li>
+                <li><strong>−1</strong> — you always feel worse on days you spend more</li>
+                <li><strong>0</strong> — no connection between spending and mood/stress</li>
+              </ul>
+            </div>
+          `;
+          return;
+        }
+
+        const moodStrength   = strengthLabel(c.spendingVsMood);
+        const stressStrength = strengthLabel(c.spendingVsStress);
+
+        el.innerHTML = `
+          <div class="insight-block">
+            <h3>Spending vs Mood</h3>
+            ${barHtml(c.spendingVsMood)}
+            <p style="margin-top:8px; line-height:1.6;">
+              There is a <strong>${moodStrength}</strong>
+              ${c.spendingVsMood >= 0 ? "positive" : "negative"} correlation
+              (r = ${c.spendingVsMood}) between your spending and your mood.
+            </p>
+            <p style="margin-top:8px; color:var(--text-muted);">${c.moodInterpretation}</p>
+          </div>
+
+          <div class="insight-block">
+            <h3>Spending vs Stress</h3>
+            ${barHtml(c.spendingVsStress)}
+            <p style="margin-top:8px; line-height:1.6;">
+              There is a <strong>${stressStrength}</strong>
+              ${c.spendingVsStress >= 0 ? "positive" : "negative"} correlation
+              (r = ${c.spendingVsStress}) between your spending and your stress.
+            </p>
+            <p style="margin-top:8px; color:var(--text-muted);">${c.stressInterpretation}</p>
+          </div>
+
+          <div class="insight-block">
+            <h3>About this analysis</h3>
+            <p style="margin-top:8px; line-height:1.6; font-size:0.9rem; color:var(--text-muted);">
+              Based on <strong>${c.matchedDays}</strong> days where both spending
+              and a check-in were recorded. Correlation does not imply causation —
+              this is a pattern in your personal data, not a clinical finding.
+              More data will make the result more reliable.
+            </p>
+          </div>
+        `;
+      } catch (err) {
+        showAlert(err.message);
+      }
+    }
+
+    loadCorrelation();
+  </script>
+</body>
+</html>

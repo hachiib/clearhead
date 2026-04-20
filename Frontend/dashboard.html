@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClearHead — Dashboard</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="container pb-nav">
+
+    <div class="page-header mt-16">
+      <div>
+        <h1>Dashboard</h1>
+        <p class="text-muted" id="greeting"></p>
+      </div>
+      <button class="btn btn-ghost" style="width:auto;" onclick="logout()">Logout</button>
+    </div>
+
+    <!-- Stats -->
+    <div style="display:flex; flex-direction:column; align-items:center; gap:12px; margin-bottom:20px;">
+      <!-- Balance — large centred circle -->
+      <div class="stat-circle" style="width:140px; height:140px; border-color:var(--primary); border-width:3px;">
+        <span class="stat-value" id="stat-balance" style="font-size:1.3rem;">—</span>
+        <span class="stat-label">Balance</span>
+      </div>
+      <!-- Income / Expenses -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; width:100%;">
+        <div class="stat-circle" style="border-color:#1b4332;">
+          <span class="stat-value" id="stat-income" style="color:#1b4332;">—</span>
+          <span class="stat-label">Income</span>
+        </div>
+        <div class="stat-circle" style="border-color:var(--danger);">
+          <span class="stat-value" id="stat-expenses" style="color:var(--danger);">—</span>
+          <span class="stat-label">Expenses</span>
+        </div>
+      </div>
+      <!-- Avg Mood / Avg Stress -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; width:100%;">
+        <div class="stat-circle">
+          <span class="stat-value" id="stat-mood">—</span>
+          <span class="stat-label">Avg Mood</span>
+        </div>
+        <div class="stat-circle">
+          <span class="stat-value" id="stat-stress">—</span>
+          <span class="stat-label">Avg Stress</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Transactions -->
+    <div class="card mb-16">
+      <div class="page-header" style="margin-bottom:12px;">
+        <h2>Recent Transactions</h2>
+        <a href="/transactions.html" class="text-muted" style="font-size:0.875rem;">See all</a>
+      </div>
+      <div id="recent-transactions"><p class="text-muted">Loading…</p></div>
+    </div>
+
+    <!-- Recent Check-ins -->
+    <div class="card">
+      <div class="page-header" style="margin-bottom:12px;">
+        <h2>Recent Check-ins</h2>
+        <a href="/checkin.html" class="text-muted" style="font-size:0.875rem;">Add</a>
+      </div>
+      <div id="recent-checkins"><p class="text-muted">Loading…</p></div>
+    </div>
+
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="nav">
+    <a href="/dashboard.html" class="active"><span class="nav-icon">🏠</span>Home</a>
+    <a href="/transactions.html"><span class="nav-icon">💳</span>Spend</a>
+    <a href="/checkin.html"><span class="nav-icon">😊</span>Check-in</a>
+    <a href="/insights.html"><span class="nav-icon">📊</span>Insights</a>
+    <a href="/import.html"><span class="nav-icon">📤</span>Import</a>
+  </nav>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    requireAuth();
+
+    const user = getUser();
+    if (user) document.getElementById("greeting").textContent = `Hello, ${user.name}`;
+
+    function fmtMoney(n) {
+      return "£" + Math.abs(n).toFixed(2);
+    }
+
+    function fmtDate(s) {
+      return new Date(s).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    }
+
+    async function loadDashboard() {
+      try {
+        const [sumRes, txRes, ckRes] = await Promise.all([
+          api.getSummary(),
+          api.getTransactions(),
+          api.getCheckins(),
+        ]);
+
+        const s = sumRes.summary;
+        document.getElementById("stat-balance").textContent  = fmtMoney(s.netBalance ?? 0);
+        document.getElementById("stat-income").textContent   = fmtMoney(s.totalIncome ?? 0);
+        document.getElementById("stat-expenses").textContent = fmtMoney(s.totalExpenses ?? 0);
+        document.getElementById("stat-mood").textContent     = s.avgMood   != null ? s.avgMood   : "—";
+        document.getElementById("stat-stress").textContent   = s.avgStress != null ? s.avgStress : "—";
+
+        // Recent transactions — last 5
+        const txns = (txRes.transactions || []).slice(0, 5);
+        const txEl = document.getElementById("recent-transactions");
+        if (txns.length === 0) {
+          txEl.innerHTML = '<p class="text-muted">No transactions yet.</p>';
+        } else {
+          txEl.innerHTML = txns.map(t => `
+            <div class="transaction-item ${t.type}">
+              <span>${t.type === "income" ? "+" : "−"}</span>
+              <div>
+                <div class="t-name">${escHtml(t.description || t.category)}</div>
+                <div class="t-date">${fmtDate(t.date)}</div>
+              </div>
+              <span class="t-amount">${fmtMoney(t.amount)}</span>
+            </div>
+          `).join("");
+        }
+
+        // Recent check-ins — last 3
+        const cks = (ckRes.checkins || []).slice(0, 3);
+        const ckEl = document.getElementById("recent-checkins");
+        if (cks.length === 0) {
+          ckEl.innerHTML = '<p class="text-muted">No check-ins yet.</p>';
+        } else {
+          ckEl.innerHTML = cks.map(c => `
+            <div style="display:flex; justify-content:space-between; align-items:center;
+                        padding:10px 0; border-bottom:1px solid var(--border);">
+              <span class="text-muted" style="font-size:0.85rem;">${fmtDate(c.date)}</span>
+              <span style="font-size:0.9rem;">Mood <strong>${c.mood_score}</strong></span>
+              <span style="font-size:0.9rem;">Stress <strong>${c.stress_score}</strong></span>
+            </div>
+          `).join("");
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function escHtml(s) {
+      return String(s ?? "")
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    loadDashboard();
+  </script>
+</body>
+</html>

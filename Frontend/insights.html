@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClearHead — Insights</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="container pb-nav">
+
+    <div class="page-header mt-16">
+      <h1>Insights</h1>
+      <a href="/insights-detail.html" class="btn btn-ghost" style="width:auto; font-size:0.85rem;">What it means</a>
+    </div>
+
+    <!-- Date range picker -->
+    <div class="card mb-16" style="display:flex; gap:12px; align-items:flex-end;">
+      <div class="form-group" style="margin:0; flex:1;">
+        <label>From</label>
+        <input type="date" id="date-from" onchange="renderChart()" />
+      </div>
+      <div class="form-group" style="margin:0; flex:1;">
+        <label>To</label>
+        <input type="date" id="date-to" onchange="renderChart()" />
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="card mb-16">
+      <canvas id="insights-chart" height="220"></canvas>
+      <p class="text-muted" id="chart-empty" style="display:none; text-align:center; padding:40px 0;">
+        No overlapping data in this range.<br>Add check-ins and transactions to see trends.
+      </p>
+    </div>
+
+    <!-- Footer stats -->
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:16px;">
+      <div class="card text-center" style="padding:14px;">
+        <div style="font-size:1.2rem; font-weight:700; color:var(--primary);" id="footer-mood">—</div>
+        <div class="text-muted" style="font-size:0.75rem; margin-top:4px;">Avg Mood</div>
+      </div>
+      <div class="card text-center" style="padding:14px;">
+        <div style="font-size:1.2rem; font-weight:700; color:var(--danger);" id="footer-stress">—</div>
+        <div class="text-muted" style="font-size:0.75rem; margin-top:4px;">Avg Stress</div>
+      </div>
+      <div class="card text-center" style="padding:14px;">
+        <div style="font-size:1.2rem; font-weight:700; color:var(--primary);" id="footer-spent">—</div>
+        <div class="text-muted" style="font-size:0.75rem; margin-top:4px;">Total Spent</div>
+      </div>
+    </div>
+
+    <!-- Recent check-ins -->
+    <div class="card">
+      <h2 style="margin-bottom:12px;">Recent Check-ins</h2>
+      <div id="checkin-list"><p class="text-muted">Loading…</p></div>
+    </div>
+
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="nav">
+    <a href="/dashboard.html"><span class="nav-icon">🏠</span>Home</a>
+    <a href="/transactions.html"><span class="nav-icon">💳</span>Spend</a>
+    <a href="/checkin.html"><span class="nav-icon">😊</span>Check-in</a>
+    <a href="/insights.html" class="active"><span class="nav-icon">📊</span>Insights</a>
+    <a href="/import.html"><span class="nav-icon">📤</span>Import</a>
+  </nav>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    requireAuth();
+
+    let allCheckins     = [];
+    let allTransactions = [];
+    let chart           = null;
+
+    // Default date range: last 30 days
+    const today = new Date().toISOString().slice(0, 10);
+    const thirtyAgo = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
+    document.getElementById("date-from").value = thirtyAgo;
+    document.getElementById("date-to").value   = today;
+
+    function fmtDate(s) {
+      return new Date(s).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    }
+
+    function isoWeek(dateStr) {
+      const d = new Date(dateStr);
+      const day = d.getDay() || 7;
+      d.setDate(d.getDate() + 4 - day);
+      const yearStart = new Date(d.getFullYear(), 0, 1);
+      return `${d.getFullYear()}-W${String(Math.ceil(((d - yearStart) / 864e5 + 1) / 7)).padStart(2, "0")}`;
+    }
+
+    function weekLabel(isoWeekStr) {
+      // e.g. "2025-W12" → "18 Mar"
+      const [year, w] = isoWeekStr.split("-W").map(Number);
+      const jan4 = new Date(year, 0, 4);
+      const weekStart = new Date(jan4.getTime() + (w - 1) * 7 * 864e5);
+      weekStart.setDate(weekStart.getDate() - (weekStart.getDay() || 7) + 1);
+      return weekStart.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    }
+
+    function renderChart() {
+      const from = document.getElementById("date-from").value;
+      const to   = document.getElementById("date-to").value;
+
+      const checkins = allCheckins.filter(c => c.date >= from && c.date <= to);
+      const txns     = allTransactions.filter(t => t.date >= from && t.date <= to && t.type === "expense");
+
+      // Aggregate by week
+      const weekMap = {};
+      for (const c of checkins) {
+        const w = isoWeek(c.date);
+        if (!weekMap[w]) weekMap[w] = { moodSum: 0, moodN: 0, stressSum: 0, stressN: 0, spent: 0 };
+        weekMap[w].moodSum   += c.mood_score;
+        weekMap[w].moodN     += 1;
+        weekMap[w].stressSum += c.stress_score;
+        weekMap[w].stressN   += 1;
+      }
+      for (const t of txns) {
+        const w = isoWeek(t.date);
+        if (!weekMap[w]) weekMap[w] = { moodSum: 0, moodN: 0, stressSum: 0, stressN: 0, spent: 0 };
+        weekMap[w].spent += t.amount;
+      }
+
+      const weeks   = Object.keys(weekMap).sort();
+      const labels  = weeks.map(weekLabel);
+      const moodPts = weeks.map(w => weekMap[w].moodN   ? +(weekMap[w].moodSum / weekMap[w].moodN).toFixed(2)   : null);
+      const stressPts = weeks.map(w => weekMap[w].stressN ? +(weekMap[w].stressSum / weekMap[w].stressN).toFixed(2) : null);
+
+      const chartEl   = document.getElementById("insights-chart");
+      const emptyEl   = document.getElementById("chart-empty");
+      const hasData   = weeks.length > 0;
+
+      chartEl.style.display = hasData ? "block" : "none";
+      emptyEl.style.display = hasData ? "none"  : "block";
+
+      if (!hasData) {
+        if (chart) { chart.destroy(); chart = null; }
+        return;
+      }
+
+      if (chart) chart.destroy();
+
+      chart = new Chart(chartEl, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "Avg Mood",
+              data: moodPts,
+              borderColor: "#2d6a4f",
+              backgroundColor: "rgba(45,106,79,0.08)",
+              tension: 0.3,
+              spanGaps: true,
+              pointRadius: 4,
+            },
+            {
+              label: "Avg Stress",
+              data: stressPts,
+              borderColor: "#c0392b",
+              backgroundColor: "rgba(192,57,43,0.08)",
+              tension: 0.3,
+              spanGaps: true,
+              pointRadius: 4,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          interaction: { mode: "index", intersect: false },
+          scales: {
+            y: {
+              min: 1,
+              max: 10,
+              ticks: { stepSize: 1 },
+              grid: { color: "rgba(0,0,0,0.05)" },
+            },
+            x: {
+              grid: { display: false },
+            },
+          },
+          plugins: {
+            legend: { position: "top" },
+          },
+        },
+      });
+
+      // Footer stats
+      const avgMood   = checkins.length ? (checkins.reduce((s, c) => s + c.mood_score, 0) / checkins.length).toFixed(1) : "—";
+      const avgStress = checkins.length ? (checkins.reduce((s, c) => s + c.stress_score, 0) / checkins.length).toFixed(1) : "—";
+      const totalSpent = txns.reduce((s, t) => s + t.amount, 0);
+      document.getElementById("footer-mood").textContent   = avgMood;
+      document.getElementById("footer-stress").textContent = avgStress;
+      document.getElementById("footer-spent").textContent  = "£" + totalSpent.toFixed(2);
+    }
+
+    async function loadData() {
+      try {
+        const [ckRes, txRes] = await Promise.all([
+          api.getCheckins(),
+          api.getTransactions(),
+        ]);
+        allCheckins     = ckRes.checkins     || [];
+        allTransactions = txRes.transactions || [];
+
+        // Recent check-ins list
+        const recent = allCheckins.slice(0, 5);
+        const el = document.getElementById("checkin-list");
+        if (recent.length === 0) {
+          el.innerHTML = '<p class="text-muted">No check-ins yet.</p>';
+        } else {
+          el.innerHTML = recent.map(c => `
+            <div style="display:flex; justify-content:space-between; align-items:center;
+                        padding:10px 0; border-bottom:1px solid var(--border); font-size:0.9rem;">
+              <span class="text-muted">${fmtDate(c.date)}</span>
+              <span>Mood <strong>${c.mood_score}</strong></span>
+              <span>Stress <strong>${c.stress_score}</strong></span>
+            </div>
+          `).join("");
+        }
+
+        renderChart();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    loadData();
+  </script>
+</body>
+</html>

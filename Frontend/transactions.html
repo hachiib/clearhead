@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClearHead — Transactions</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    .sheet-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 200;
+    }
+    .sheet-overlay.open { display: block; }
+
+    .bottom-sheet {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--surface);
+      border-radius: var(--radius) var(--radius) 0 0;
+      padding: 16px 16px 32px;
+      z-index: 201;
+      transform: translateY(100%);
+      transition: transform 0.25s ease;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .bottom-sheet.open { transform: translateY(0); }
+
+    .sheet-handle {
+      width: 40px; height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin: 0 auto 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container pb-nav">
+
+    <div class="page-header mt-16">
+      <h1>Transactions</h1>
+      <button class="btn btn-primary" style="width:auto;" onclick="openAddSheet()">+ Add</button>
+    </div>
+
+    <!-- Balance bar -->
+    <div class="card mb-16" style="display:flex; justify-content:space-between; align-items:center;">
+      <span class="text-muted">Balance</span>
+      <span id="balance-display" style="font-size:1.25rem; font-weight:700; color:var(--primary);">—</span>
+    </div>
+
+    <div class="alert" id="alert"></div>
+
+    <div id="transaction-list"><p class="text-muted">Loading…</p></div>
+
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="nav">
+    <a href="/dashboard.html"><span class="nav-icon">🏠</span>Home</a>
+    <a href="/transactions.html" class="active"><span class="nav-icon">💳</span>Spend</a>
+    <a href="/checkin.html"><span class="nav-icon">😊</span>Check-in</a>
+    <a href="/insights.html"><span class="nav-icon">📊</span>Insights</a>
+    <a href="/import.html"><span class="nav-icon">📤</span>Import</a>
+  </nav>
+
+  <!-- Sheet overlay -->
+  <div class="sheet-overlay" id="overlay" onclick="closeSheets()"></div>
+
+  <!-- Add / Edit sheet -->
+  <div class="bottom-sheet" id="add-sheet">
+    <div class="sheet-handle"></div>
+    <h2 id="sheet-title">Add Transaction</h2>
+    <input type="hidden" id="edit-id" />
+
+    <div class="form-group mt-16">
+      <label>Description</label>
+      <input type="text" id="f-desc" placeholder="e.g. Grocery shop" />
+    </div>
+    <div class="form-group">
+      <label>Category</label>
+      <select id="f-category">
+        <option value="Food">Food</option>
+        <option value="Transport">Transport</option>
+        <option value="Shopping">Shopping</option>
+        <option value="Entertainment">Entertainment</option>
+        <option value="Health">Health</option>
+        <option value="Bills">Bills</option>
+        <option value="Salary">Salary</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Amount (£)</label>
+      <input type="number" id="f-amount" placeholder="0.00" min="0.01" step="0.01" />
+    </div>
+    <div class="form-group">
+      <label>Type</label>
+      <select id="f-type">
+        <option value="expense">Expense</option>
+        <option value="income">Income</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Date</label>
+      <input type="date" id="f-date" />
+    </div>
+
+    <div class="alert" id="sheet-alert"></div>
+    <button class="btn btn-primary" id="sheet-save-btn" onclick="saveTransaction()">Save</button>
+  </div>
+
+  <!-- Detail sheet -->
+  <div class="bottom-sheet" id="detail-sheet">
+    <div class="sheet-handle"></div>
+    <h2 id="detail-desc"></h2>
+    <p class="text-muted mt-8" id="detail-meta"></p>
+    <div style="display:flex; gap:12px; margin-top:20px;">
+      <button class="btn btn-ghost" style="flex:1;" onclick="openEditFromDetail()">Edit</button>
+      <button class="btn btn-danger" style="flex:1;" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    requireAuth();
+
+    let transactions = [];
+    let selectedId = null;
+
+    function fmtMoney(n) { return "£" + Math.abs(n).toFixed(2); }
+
+    function fmtDate(s) {
+      return new Date(s).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    }
+
+    function escHtml(s) {
+      return String(s ?? "")
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function showAlert(id, msg, type = "error") {
+      const el = document.getElementById(id);
+      el.textContent = msg;
+      el.className = `alert alert-${type} show`;
+    }
+
+    function hideAlert(id) { document.getElementById(id).className = "alert"; }
+
+    function openSheet(id) {
+      document.getElementById("overlay").classList.add("open");
+      document.getElementById(id).classList.add("open");
+    }
+
+    function closeSheets() {
+      document.getElementById("overlay").classList.remove("open");
+      document.querySelectorAll(".bottom-sheet").forEach(s => s.classList.remove("open"));
+      hideAlert("sheet-alert");
+      hideAlert("alert");
+    }
+
+    function openAddSheet() {
+      document.getElementById("sheet-title").textContent = "Add Transaction";
+      document.getElementById("edit-id").value = "";
+      document.getElementById("f-desc").value = "";
+      document.getElementById("f-amount").value = "";
+      document.getElementById("f-category").value = "Food";
+      document.getElementById("f-type").value = "expense";
+      document.getElementById("f-date").value = new Date().toISOString().slice(0, 10);
+      const btn = document.getElementById("sheet-save-btn");
+      btn.textContent = "Save";
+      btn.disabled = false;
+      openSheet("add-sheet");
+    }
+
+    function openDetailSheet(id) {
+      const t = transactions.find(x => x.id === id);
+      if (!t) return;
+      selectedId = id;
+      document.getElementById("detail-desc").textContent =
+        t.description ? `${t.description} (${t.category})` : t.category;
+      document.getElementById("detail-meta").textContent =
+        `${t.type === "income" ? "+" : "−"}${fmtMoney(t.amount)} · ${fmtDate(t.date)}`;
+      openSheet("detail-sheet");
+    }
+
+    function openEditFromDetail() {
+      const t = transactions.find(x => x.id === selectedId);
+      if (!t) return;
+      closeSheets();
+      document.getElementById("sheet-title").textContent = "Edit Transaction";
+      document.getElementById("edit-id").value = t.id;
+      document.getElementById("f-desc").value = t.description ?? "";
+      document.getElementById("f-category").value = t.category ?? "Other";
+      document.getElementById("f-amount").value = t.amount;
+      document.getElementById("f-type").value = t.type;
+      document.getElementById("f-date").value = t.date.slice(0, 10);
+      const btn = document.getElementById("sheet-save-btn");
+      btn.textContent = "Update";
+      btn.disabled = false;
+      openSheet("add-sheet");
+    }
+
+    async function saveTransaction() {
+      const id       = document.getElementById("edit-id").value;
+      const desc     = document.getElementById("f-desc").value.trim();
+      const category = document.getElementById("f-category").value;
+      const amount   = parseFloat(document.getElementById("f-amount").value);
+      const type     = document.getElementById("f-type").value;
+      const date     = document.getElementById("f-date").value;
+
+      if (!category || isNaN(amount) || amount <= 0 || !date) {
+        showAlert("sheet-alert", "Please fill in all required fields.");
+        return;
+      }
+
+      const btn = document.getElementById("sheet-save-btn");
+      btn.disabled = true;
+      btn.textContent = "Saving…";
+
+      try {
+        const payload = { description: desc || null, category, amount, type, date };
+        if (id) {
+          await api.updateTransaction(id, payload);
+        } else {
+          await api.createTransaction(payload);
+        }
+        closeSheets();
+        await loadTransactions();
+      } catch (err) {
+        showAlert("sheet-alert", err.message);
+        btn.disabled = false;
+        btn.textContent = id ? "Update" : "Save";
+      }
+    }
+
+    async function confirmDelete() {
+      if (!selectedId) return;
+      if (!confirm("Delete this transaction?")) return;
+      try {
+        await api.deleteTransaction(selectedId);
+        closeSheets();
+        await loadTransactions();
+      } catch (err) {
+        showAlert("alert", err.message);
+      }
+    }
+
+    async function loadTransactions() {
+      try {
+        const res = await api.getTransactions();
+        transactions = res.transactions || [];
+
+        const income   = transactions.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
+        const expenses = transactions.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+        document.getElementById("balance-display").textContent = "£" + (income - expenses).toFixed(2);
+
+        const el = document.getElementById("transaction-list");
+        if (transactions.length === 0) {
+          el.innerHTML = '<p class="text-muted">No transactions yet. Tap + Add to get started.</p>';
+          return;
+        }
+
+        el.innerHTML = transactions.map(t => `
+          <div class="transaction-item ${t.type}">
+            <span>${t.type === "income" ? "+" : "−"}</span>
+            <div>
+              <div class="t-name">${escHtml(t.description || t.category)}</div>
+              <div class="t-date">${escHtml(t.category)} · ${fmtDate(t.date)}</div>
+            </div>
+            <span class="t-amount">${fmtMoney(t.amount)}</span>
+            <span class="t-menu" data-id="${t.id}" onclick="openDetailSheet(this.dataset.id)">⋯</span>
+          </div>
+        `).join("");
+      } catch (err) {
+        showAlert("alert", err.message);
+      }
+    }
+
+    loadTransactions();
+  </script>
+</body>
+</html>
