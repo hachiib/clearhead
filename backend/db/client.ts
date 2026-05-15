@@ -1,7 +1,7 @@
 import { Database } from "jsr:@db/sqlite";
 
-export const db = new Database("clearhead.db");
-
+const dbPath = Deno.env.get("DATABASE_PATH") ?? "clearhead.db";
+export const db = new Database(dbPath);
 // Run once on startup to create tables
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (

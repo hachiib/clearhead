@@ -1,9 +1,10 @@
-import { Application, Router } from "@oak/oak";
+import { Application, Router, send } from "@oak/oak";
 import { authRouter } from "./routes/auth.ts";
 import "./db/client.ts";
 import { transactionsRouter } from "./routes/transactions.ts";
 import { checkinsRouter } from "./routes/checkins.ts";
 import { insightsRouter } from "./routes/insights.ts";
+import { serveDir } from "jsr:@std/http/file-server";
 
 const app = new Application();
 
@@ -43,6 +44,17 @@ app.use(checkinsRouter.routes());
 app.use(checkinsRouter.allowedMethods());
 app.use(insightsRouter.routes());
 app.use(insightsRouter.allowedMethods());
+app.use(async (ctx, next) => {
+  if (!ctx.request.url.pathname.startsWith("/api")) {
+    await send(ctx, ctx.request.url.pathname, {
+      root: `${Deno.cwd()}/Frontend`,
+      index: "login.html",
+    });
+  } else {
+    await next();
+  }
+});
 
-console.log("Server running on http://localhost:8000");
-await app.listen({ port: 8000 });
+const port = parseInt(Deno.env.get("PORT") ?? "8000");
+console.log(`Server running on port ${port}`);
+await app.listen({ port });
