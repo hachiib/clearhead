@@ -1,5 +1,4 @@
-const BASE_URL = "const BASE_URL = "https://clearhead-production-18cb.up.railway.app/api/v1";
-
+const BASE_URL = "https://clearhead-production-18cb.up.railway.app/api/v1";
 async function apiFetch(endpoint, options = {}) {
   const token = localStorage.getItem("token");
 
@@ -65,8 +64,7 @@ const api = {
       body: JSON.stringify(data),
     }),
 
-  deleteCheckin: (id) =>
-    apiFetch(`/checkins/${id}`, { method: "DELETE" }),
+  deleteCheckin: (id) => apiFetch(`/checkins/${id}`, { method: "DELETE" }),
 
   // Insights
   getSummary: () => apiFetch("/insights/summary"),
